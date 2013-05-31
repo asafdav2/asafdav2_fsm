@@ -6,71 +6,109 @@
 
 using namespace std;
 
-class Seq1State : public State {
+// define some custom states
+class Seq1State : public BaseState {
 public:
-    virtual void reached_with(const Event& event) {
+    Seq1State(int i) : BaseState(i) {}
+    Seq1State(const string& id) : BaseState(id) {}
+    virtual void reached_with(sh_event event) {
         cout << "Seq1\n";
     }
-};
-
-class Seq2State : public State {
-public:
-    virtual void reached_with(const Event& event) {
-        cout << "Seq2\n";
+    virtual string get_clazz() const {
+        return "Seq1State";
     }
 };
 
-class Seq3State : public State {
+class Seq2State : public BaseState {
+public:
+    Seq2State(int i) : BaseState(i) {}
+    Seq2State(const string& id) : BaseState(id) {}
+    virtual void reached_with(sh_event event) {
+        cout << "Seq2\n";
+    }
+    virtual string get_clazz() const {
+        return "Seq2State";
+    }
+};
+
+class Seq3State : public BaseState {
     public:
-    virtual void left_with(const Event& event) {
-        cout << "Seq3: " << event << "\n";
+    Seq3State(int i) : BaseState(i) {}
+    Seq3State(const string& id) : BaseState(id) {}
+    virtual void left_with(sh_event event) {
+        cout << "Seq3: " << *event << "\n";
+    }
+    virtual string get_clazz() const {
+        return "Seq3State";
     }
 };
 
 int main() {
-    Event A("A"), B("B"), C("C");
-    vector<shared_ptr<State>> q(10);
-    generate(q.begin(), q.end(), make_shared<State>);
-    
-    q[6] = make_shared<Seq1State>();
-    q[7] = make_shared<Seq3State>();
 
-    // to support Seq1
-    q[1]->add_transitions({make_pair(A, q[2]), make_pair(B, q[1]), make_pair(C, q[1])});
-    q[2]->add_transitions({make_pair(A, q[3]), make_pair(B, q[8]), make_pair(C, q[7])});
-    q[3]->add_transitions({make_pair(A, q[2]), make_pair(B, q[4]), make_pair(C, q[7])});
-    q[4]->add_transitions({make_pair(A, q[2]), make_pair(B, q[1]), make_pair(C, q[5])});
-    q[5]->add_transitions({make_pair(A, q[6]), make_pair(B, q[1]), make_pair(C, q[1])});
-    q[6]->add_transitions({make_pair(A, q[2]), make_pair(B, q[1]), make_pair(C, q[7])});
-    
-    // to support Seq3
-    q[7]->add_transitions({make_pair(A, q[2]), make_pair(B, q[1]), make_pair(C, q[1])});
+    // register our states, so they can be deserialized
+    Machine::register_state_class<BaseState>("BaseState");
+    Machine::register_state_class<Seq1State>("Seq1State");
+    Machine::register_state_class<Seq2State>("Seq2State");
+    Machine::register_state_class<Seq3State>("Seq3State");
 
-    // to support Seq2
-    shared_ptr<State> last_state = q[8], new_state;
-    for (int i = 0; i != 1000; ++i) {
-        new_state = make_shared<State>();
-        last_state->add_transitions({make_pair(A, q[2]), make_pair(B, q[1]), make_pair(C, new_state)});
-        q.push_back(last_state);
+    // prepare the machine ingridients
+    sh_event A = make_shared<Event>("A"), 
+             B = make_shared<Event>("B"), 
+             C = make_shared<Event>("C");
+    vector<sh_state> Q(10);
+    for (int i = 0; i != 10; ++i) {
+        Q[i] = make_shared<BaseState>(i);
+    }
+    
+    Q[6] = make_shared<Seq1State>(6);
+    Q[7] = make_shared<Seq3State>(7);
+
+    // support Seq1
+    Q[1]->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, Q[1])});
+    Q[2]->add_transitions({make_pair(A, Q[3]), make_pair(B, Q[8]), make_pair(C, Q[7])});
+    Q[3]->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[4]), make_pair(C, Q[7])});
+    Q[4]->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, Q[5])});
+    Q[5]->add_transitions({make_pair(A, Q[6]), make_pair(B, Q[1]), make_pair(C, Q[1])});
+    Q[6]->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, Q[7])});
+    
+    // support Seq3
+    Q[7]->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, Q[1])});
+
+    // support Seq2
+    sh_state last_state = Q[8], new_state;
+    const int LEN = 5;
+    for (int i = 0; i != LEN; ++i) {
+        new_state = make_shared<BaseState>(i + 10);
+        last_state->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, new_state)});
+        Q.push_back(last_state);
         last_state = new_state;
     }
-    q[9] = make_shared<Seq2State>();
-    q[9]->add_transitions({make_pair(A, q[3]), make_pair(B, q[1]), make_pair(C, q[7])});
-    new_state->add_transitions({make_pair(A, q[9]), make_pair(B, q[1]), make_pair(C, q[1])});
+    Q[9] = make_shared<Seq2State>(9);
+    Q[9]->add_transitions({make_pair(A, Q[3]), make_pair(B, Q[1]), make_pair(C, Q[7])});
+    new_state->add_transitions({make_pair(A, Q[9]), make_pair(B, Q[1]), make_pair(C, Q[1])});
+    Q.push_back(new_state);
 
+    // construct and run the machine
+    Machine m1({A,B,C}, Q, Q[1]);
 
-    // build and run the machine
-    Machine machine(q[1]);
+    m1.apply({A, B, A, B});
+    m1.apply({A, A, B, C, A}); // should trigger Seq1
+    m1.apply({C, A}); // should trigger Seq3 with A
 
-    machine.apply({A, B, A, B});
-    machine.apply({A, A, B, C, A}); // should trigger Seq1
-    machine.apply({C, A}); // should trigger Seq3 with A
-    machine.apply({C, A}); // should trigger Seq3 with A
-    machine.apply(B);
-    for (int i = 0; i != 1000; ++i) {
-        machine.apply(C);
+    // persist the state of the machine to string
+    ostringstream oss;
+    m1.serialize(oss);
+    const string serialized = oss.str();
+    
+    // build a new machine and continue the run
+    istringstream iss(serialized);
+    Machine m2 = Machine::deserialize(iss);
+    m2.apply({C, A}); // should trigger Seq3 with A
+    m2.apply(B);
+    for (int i = 0; i != LEN; ++i) {
+        m2.apply(C);
     }
-    machine.apply(A); // should trigger Seq2
-    machine.apply({C, B}); // should trigger Seq3 with B
+    m2.apply(A); // should trigger Seq2
+    m2.apply({C, B}); // should trigger Seq3 with B
 }
     

@@ -6,17 +6,17 @@
 
 class Event {
 public:
-    Event(const std::string& data) : m_data(data) {}
-    std::string get_data() const {
-        return m_data;
+    Event(const std::string& id) : m_id(id) {}
+    std::string get_id() const {
+        return m_id;
     }
 
     friend std::ostream& operator<< (std::ostream& os, const Event& event) {
-        return os << "Event " << event.m_data;
+        return os << "Event " << event.m_id;
     }
 
 private:
-    std::string m_data;
+    const std::string m_id;
 };
 
 #endif
