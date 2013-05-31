@@ -9,6 +9,7 @@
 #include <memory>
 #include <functional>
 #include <utility>
+#include <stdexcept>
 
 template<typename T>
 class Factory { 
