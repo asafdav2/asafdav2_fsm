@@ -3,6 +3,7 @@
 #include "Machine.hpp"
 #include <algorithm>
 #include <sstream>
+#include <fstream>
 
 using namespace std;
 
@@ -76,8 +77,8 @@ int main() {
 
     // support Seq2
     sh_state last_state = Q[8], new_state;
-    const int LEN = 5;
-    for (int i = 0; i != LEN; ++i) {
+    const int C_CHAIN_LEN = 1000;
+    for (int i = 0; i != C_CHAIN_LEN; ++i) {
         new_state = make_shared<BaseState>(i + 10);
         last_state->add_transitions({make_pair(A, Q[2]), make_pair(B, Q[1]), make_pair(C, new_state)});
         Q.push_back(last_state);
@@ -95,17 +96,17 @@ int main() {
     m1.apply({A, A, B, C, A}); // should trigger Seq1
     m1.apply({C, A}); // should trigger Seq3 with A
 
-    // persist the state of the machine to string
-    ostringstream oss;
-    m1.serialize(oss);
-    const string serialized = oss.str();
+    // persist the state of the machine to file
+    ofstream ofs("machine_state.txt");
+    m1.serialize(ofs);
+    ofs.close();
     
     // build a new machine and continue the run
-    istringstream iss(serialized);
+    ifstream iss("machine_state.txt");
     Machine m2 = Machine::deserialize(iss);
     m2.apply({C, A}); // should trigger Seq3 with A
     m2.apply(B);
-    for (int i = 0; i != LEN; ++i) {
+    for (int i = 0; i != C_CHAIN_LEN; ++i) {
         m2.apply(C);
     }
     m2.apply(A); // should trigger Seq2
