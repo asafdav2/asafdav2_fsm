@@ -42,7 +42,9 @@ public:
     template<typename S> 
     void registerClass(const std::string& clazz){ 
         if (mObjectCreator.find(clazz) != mObjectCreator.end()){ 
-            // TODO: handle error
+            std::ostringstream oss;
+            oss << "failed registering class: " << clazz << " already exists";
+            throw std::invalid_argument(oss.str());
         }
         mObjectCreator.insert(std::make_pair(clazz, &createObject<S>)); 
     }
