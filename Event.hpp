@@ -6,7 +6,9 @@
 
 class Event {
 public:
+    virtual ~Event() {}
     Event(const std::string& id, const std::string& data = "") : m_id(id), m_data(data) {}
+
     std::string get_id() const {
         return m_id;
     }
@@ -15,8 +17,12 @@ public:
         return m_data;
     }
 
+    virtual std::string get_clazz() const {
+        return "Event";
+    }
+
     friend std::ostream& operator<< (std::ostream& os, const Event& event) {
-        return os << "Event " << event.m_id;
+        return os << "Event " << event.m_id << " of type " << event.get_clazz();
     }
 
 private:
